@@ -1,0 +1,14 @@
+{
+  "name": "irys-demo-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node bot.mjs"
+  },
+  "dependencies": {
+    "@irys/sdk": "latest",
+    "dotenv": "^16.4.5"
+  }
+}
+
