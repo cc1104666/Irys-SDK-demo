@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Irys 数据查询工具</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:40px;}
+      .wrap{max-width:800px;margin:0 auto}
+      input,button{font-size:16px;padding:8px 12px;margin:8px 0}
+      .row{display:flex;gap:8px;align-items:center}
+      .log{margin-top:12px;padding:10px;border:1px solid #ddd;border-radius:6px;max-height:400px;overflow-y:auto;background:#f9f9f9}
+      .result{margin-top:12px;padding:15px;border:1px solid #4CAF50;border-radius:6px;background:#E8F5E8}
+      .error{margin-top:12px;padding:15px;border:1px solid #f44336;border-radius:6px;background:#FFEBEE}
+      .metadata{font-size:12px;color:#666;margin-top:8px}
+      .data-content{white-space:pre-wrap;word-break:break-all;margin-top:8px;padding:8px;background:#fff;border:1px solid #ddd;border-radius:4px}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h2>Irys 数据查询工具</h2>
+      <p>输入交易 ID 查询上传到 Irys 的数据</p>
+      
+      <div class="row">
+        <input id="txId" placeholder="输入交易 ID (例如: ku2UIw6_l_hgJ2aQij6PntUOxHz8iU8iPeZTblzryeA)" style="flex:1" />
+        <button id="query">查询数据</button>
+        <button id="queryMetadata">查询元数据</button>
+      </div>
+      
+      <div class="row">
+        <button id="openGateway">在 Gateway 中打开</button>
+        <button id="copyLink">复制链接</button>
+      </div>
+      
+      <div id="result"></div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <script>
+      const logEl = document.getElementById('log');
+      const resultEl = document.getElementById('result');
+      const txIdInput = document.getElementById('txId');
+      const btnQuery = document.getElementById('query');
+      const btnQueryMetadata = document.getElementById('queryMetadata');
+      const btnOpenGateway = document.getElementById('openGateway');
+      const btnCopyLink = document.getElementById('copyLink');
+      
+      function log(msg){
+        const p = document.createElement('div');
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${String(msg)}`;
+        logEl.prepend(p);
+      }
+      
+      function showResult(content, isError = false) {
+        resultEl.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = isError ? 'error' : 'result';
+        div.innerHTML = content;
+        resultEl.appendChild(div);
+      }
+      
+      function getGatewayUrl(txId) {
+        return `https://gateway.irys.xyz/${txId}`;
+      }
+      
+      async function queryData() {
+        const txId = txIdInput.value.trim();
+        if (!txId) {
+          showResult('请输入交易 ID', true);
+          return;
+        }
+        
+        log('正在查询数据...');
+        
+        try {
+          const response = await fetch(getGatewayUrl(txId));
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.text();
+          const contentType = response.headers.get('content-type') || '';
+          
+          let displayData = data;
+          let isJson = false;
+          
+          // 尝试解析 JSON
+          if (contentType.includes('application/json') || data.trim().startsWith('{') || data.trim().startsWith('[')) {
+            try {
+              const jsonData = JSON.parse(data);
+              displayData = JSON.stringify(jsonData, null, 2);
+              isJson = true;
+            } catch (e) {
+              // 不是有效的 JSON，按文本显示
+            }
+          }
+          
+          const resultHtml = `
+            <h3>查询结果</h3>
+            <div class="metadata">
+              <strong>交易 ID:</strong> ${txId}<br>
+              <strong>内容类型:</strong> ${contentType}<br>
+              <strong>数据大小:</strong> ${data.length} 字符<br>
+              <strong>Gateway URL:</strong> <a href="${getGatewayUrl(txId)}" target="_blank">${getGatewayUrl(txId)}</a>
+            </div>
+            <div class="data-content">${isJson ? `<pre>${displayData}</pre>` : displayData}</div>
+          `;
+          
+          showResult(resultHtml);
+          log('数据查询成功');
+          
+        } catch (e) {
+          const errorMsg = `查询失败: ${e.message}`;
+          showResult(errorMsg, true);
+          log(errorMsg);
+        }
+      }
+      
+      async function queryMetadata() {
+        const txId = txIdInput.value.trim();
+        if (!txId) {
+          showResult('请输入交易 ID', true);
+          return;
+        }
+        
+        log('正在查询元数据...');
+        
+        try {
+          const response = await fetch(`${getGatewayUrl(txId)}/metadata`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const metadata = await response.json();
+          
+          const resultHtml = `
+            <h3>元数据查询结果</h3>
+            <div class="metadata">
+              <strong>交易 ID:</strong> ${txId}<br>
+              <strong>元数据 URL:</strong> <a href="${getGatewayUrl(txId)}/metadata" target="_blank">${getGatewayUrl(txId)}/metadata</a>
+            </div>
+            <div class="data-content"><pre>${JSON.stringify(metadata, null, 2)}</pre></div>
+          `;
+          
+          showResult(resultHtml);
+          log('元数据查询成功');
+          
+        } catch (e) {
+          const errorMsg = `元数据查询失败: ${e.message}`;
+          showResult(errorMsg, true);
+          log(errorMsg);
+        }
+      }
+      
+      function openGateway() {
+        const txId = txIdInput.value.trim();
+        if (!txId) {
+          showResult('请输入交易 ID', true);
+          return;
+        }
+        
+        const url = getGatewayUrl(txId);
+        window.open(url, '_blank');
+        log('已在 Gateway 中打开');
+      }
+      
+      function copyLink() {
+        const txId = txIdInput.value.trim();
+        if (!txId) {
+          showResult('请输入交易 ID', true);
+          return;
+        }
+        
+        const url = getGatewayUrl(txId);
+        navigator.clipboard.writeText(url).then(() => {
+          log('链接已复制到剪贴板');
+        }).catch(() => {
+          // 降级方案
+          const textArea = document.createElement('textarea');
+          textArea.value = url;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          log('链接已复制到剪贴板');
+        });
+      }
+      
+      // 事件监听
+      btnQuery.addEventListener('click', queryData);
+      btnQueryMetadata.addEventListener('click', queryMetadata);
+      btnOpenGateway.addEventListener('click', openGateway);
+      btnCopyLink.addEventListener('click', copyLink);
+      
+      // 回车键查询
+      txIdInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          queryData();
+        }
+      });
+      
+      // 示例交易 ID
+      log('提示: 你可以使用示例交易 ID: ku2UIw6_l_hgJ2aQij6PntUOxHz8iU8iPeZTblzryeA');
+      
+      // 自动填充示例（如果输入框为空）
+      if (!txIdInput.value) {
+        txIdInput.placeholder = '输入交易 ID (例如: ku2UIw6_l_hgJ2aQij6PntUOxHz8iU8iPeZTblzryeA)';
+      }
+    </script>
+  </body>
+</html>
