@@ -1,0 +1,23 @@
+{
+  "name": "irys-server-upload",
+  "version": "1.0.0",
+  "description": "Irys 上传服务器",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@irys/sdk": "latest",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["irys", "upload", "server"],
+  "author": "",
+  "license": "MIT"
+}

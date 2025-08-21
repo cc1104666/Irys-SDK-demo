@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Irys 服务器上传</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:40px;}
+      .wrap{max-width:720px;margin:0 auto}
+      input,button{font-size:16px;padding:8px 12px;margin:8px 0}
+      .row{display:flex;gap:8px}
+      .log{margin-top:12px;padding:10px;border:1px solid #ddd;border-radius:6px;max-height:300px;overflow-y:auto}
+      .status{color:#666;font-size:14px;margin:8px 0}
+      .info{background:#f0f8ff;padding:15px;border-radius:6px;margin:20px 0}
+      .success{color:#4CAF50}
+      .error{color:#f44336}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h2>Irys 服务器上传</h2>
+      <p>通过 Node.js 服务器上传数据到 Irys 网络。</p>
+      
+      <div class="info">
+        <h3>使用说明</h3>
+        <p>1. 确保服务器已启动：<code>npm start</code></p>
+        <p>2. 配置 <code>.env</code> 文件中的私钥</p>
+        <p>3. 服务器运行在 <code>http://localhost:3001</code></p>
+      </div>
+      
+      <div class="status" id="status">状态: 检查服务器连接...</div>
+      <div class="row">
+        <button id="checkStatus">检查状态</button>
+        <button id="getBalance">获取余额</button>
+      </div>
+      <div>
+        <input id="text" placeholder="要上传的文本" style="width: 100%" value="Hello from Irys Server Upload!" />
+        <button id="upload">上传到 Irys</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <script>
+      const logEl = document.getElementById('log');
+      const statusEl = document.getElementById('status');
+      const btnCheckStatus = document.getElementById('checkStatus');
+      const btnUpload = document.getElementById('upload');
+      const btnBalance = document.getElementById('getBalance');
+      const input = document.getElementById('text');
+      
+      const API_BASE = 'http://localhost:3001/api';
+      
+      function log(msg, type = 'info'){
+        const p = document.createElement('div');
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${String(msg)}`;
+        if (type === 'success') p.className = 'success';
+        if (type === 'error') p.className = 'error';
+        logEl.prepend(p);
+      }
+      
+      function updateStatus(msg) {
+        statusEl.textContent = `状态: ${msg}`;
+      }
+      
+      async function checkStatus(){
+        try {
+          updateStatus('检查中...');
+          log('正在检查服务器状态...');
+          
+          const response = await fetch(`${API_BASE}/status`);
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            updateStatus(`已连接 - ${data.address}`);
+            log(`服务器状态: 正常`, 'success');
+            log(`地址: ${data.address}`);
+            log(`余额: ${data.balance}`);
+            log(`代币: ${data.token}`);
+          } else {
+            updateStatus('服务器错误');
+            log(`服务器错误: ${data.message}`, 'error');
+          }
+        } catch (e) {
+          updateStatus('连接失败');
+          log(`连接失败: ${e.message}`, 'error');
+        }
+      }
+      
+      async function getBalance(){
+        try {
+          log('正在获取余额...');
+          
+          const response = await fetch(`${API_BASE}/balance`);
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            log(`余额: ${data.formatted}`, 'success');
+          } else {
+            log(`获取余额失败: ${data.message}`, 'error');
+          }
+        } catch (e) {
+          log(`获取余额失败: ${e.message}`, 'error');
+        }
+      }
+      
+      async function upload(){
+        const content = input.value || 'Hello from Irys Server Upload!';
+        
+        if (!content.trim()) {
+          log('请输入要上传的内容', 'error');
+          return;
+        }
+        
+        try {
+          log('正在上传到 Irys...');
+          log('上传内容: ' + content);
+          
+          const response = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ content })
+          });
+          
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            log('上传成功！', 'success');
+            log('交易ID: ' + data.id);
+            log('查看地址: ' + data.url);
+            
+            // 创建可点击的链接
+            const link = document.createElement('a');
+            link.href = data.url;
+            link.target = '_blank';
+            link.textContent = '点击查看上传的数据';
+            link.style.color = '#4CAF50';
+            link.style.textDecoration = 'underline';
+            logEl.prepend(link);
+            
+          } else {
+            log(`上传失败: ${data.message}`, 'error');
+          }
+        } catch (e) {
+          log(`上传失败: ${e.message}`, 'error');
+        }
+      }
+      
+      btnCheckStatus.addEventListener('click', checkStatus);
+      btnBalance.addEventListener('click', getBalance);
+      btnUpload.addEventListener('click', upload);
+      
+      // 页面加载时自动检查状态
+      checkStatus();
+    </script>
+  </body>
+</html>
